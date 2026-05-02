@@ -11,7 +11,7 @@ st.write("Upload an image to predict the gender (Male/Female).")
 @st.cache_resource
 def load_gender_classifier():
     # This model requires 'timm' library installed via requirements.txt
-    return pipeline("image-classification", model="rizwandari/gender-classification-vit")
+    return pipeline("image-classification", model="rizvandwiki/gender-classification")
 
 with st.spinner("Loading AI Model..."):
     gender_classifier = load_gender_classifier()
