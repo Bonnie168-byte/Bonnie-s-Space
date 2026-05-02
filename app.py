@@ -2,39 +2,58 @@ import streamlit as st
 from transformers import pipeline
 from PIL import Image
 
-# Set up the app title and layout
-st.title("🎂 Age Classification using ViT")
-st.write("Upload an image to predict the age range of the person.")
+# Page Configuration
+st.set_page_config(page_title="Gender Classifier", page_icon=":material/transgender:")
 
-# Cache the model so it doesn't reload on every interaction
+# Title and Description
+st.title(":material/face: Gender Classification")
+st.write("Upload a face image to classify the gender using a Vision Transformer (ViT) model.")
+
+# Load Model with Caching to prevent reloading on every interaction
 @st.cache_resource
-def load_classifier():
-    return pipeline("image-classification", model="nateraw/vit-age-classifier")
+def load_gender_model():
+    # Model: rizwandari/gender-classification-vit
+    return pipeline("image-classification", model="rizwandari/gender-classification-vit")
 
-age_classifier = load_classifier()
+with st.spinner("Loading AI Model..."):
+    gender_pipe = load_gender_model()
 
-# File uploader for user images
+# File Uploader
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # Open and display the image
+    # Process Image
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_container_width=True)
     
-    with st.spinner("Classifying..."):
-        # Classify age
-        age_predictions = age_classifier(image)
-        
-        # Sort predictions by score (highest first)
-        age_predictions = sorted(age_predictions, key=lambda x: x['score'], reverse=True)
-        
-        # Display results
-        top_prediction = age_predictions[0]
-        st.success(f"**Predicted Age Range: {top_prediction['label']}**")
-        st.write(f"Confidence Score: {top_prediction['score']:.2%}")
-        
-        # Optional: Show all probabilities in a chart
-        with st.expander("See detailed probabilities"):
-            labels = [p['label'] for p in age_predictions]
-            scores = [p['score'] for p in age_predictions]
-            st.bar_chart(data=dict(zip(labels, scores)))
+    # UI Layout: Two columns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.image(image, caption="Uploaded Image", use_container_width=True)
+    
+    with col2:
+        with st.spinner("Analyzing..."):
+            # Run Inference
+            results = gender_pipe(image)
+            
+            # Get Top Result
+            # The model usually returns a list of labels/scores sorted by probability
+            top_result = results[0]
+            label = top_result['label']
+            score = top_result['score']
+            
+            # Display Result
+            st.subheader("Result")
+            if label.lower() == "male":
+                st.info(f"Gender: **{label}**")
+            else:
+                st.success(f"Gender: **{label}**")
+                
+            st.metric(label="Confidence Score", value=f"{score:.2%}")
+            
+            # Details Expander
+            with st.expander("Show detailed probabilities"):
+                for res in results:
+                    st.write(f"{res['label']}: {res['score']:.4f}")
+else:
+    st.info("Please upload an image file to start classification.")
