@@ -2,31 +2,39 @@ import streamlit as st
 from transformers import pipeline
 from PIL import Image
 
-# 页面配置
-st.set_page_config(page_title="Gender Classifier", page_icon="👤")
+# Set up the app title and layout
+st.title("🎂 Age Classification using ViT")
+st.write("Upload an image to predict the age range of the person.")
 
+# Cache the model so it doesn't reload on every interaction
 @st.cache_resource
-def load_gender_model():
-    # 明确指定使用 timm 引擎
-    return pipeline(
-        "image-classification", 
-        model="rizwandari/gender-classification-vit"
-    )
+def load_classifier():
+    return pipeline("image-classification", model="nateraw/vit-age-classifier")
 
-st.title("Gender Classification")
+age_classifier = load_classifier()
 
-try:
-    with st.spinner("Downloading/Loading model... This may take a minute on first run."):
-        gender_pipe = load_gender_model()
+# File uploader for user images
+uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
+    # Open and display the image
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_container_width=True)
     
-    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png"])
-    
-    if uploaded_file:
-        img = Image.open(uploaded_file).convert("RGB")
-        st.image(img, width=300)
-        results = gender_pipe(img)
-        st.write(f"Result: **{results[0]['label']}** (Confidence: {results[0]['score']:.2%})")
-
-except Exception as e:
-    st.error(f"Error loading model: {e}")
-    st.info("Tip: Ensure 'timm' is added to your requirements.txt and you have a stable internet connection.")
+    with st.spinner("Classifying..."):
+        # Classify age
+        age_predictions = age_classifier(image)
+        
+        # Sort predictions by score (highest first)
+        age_predictions = sorted(age_predictions, key=lambda x: x['score'], reverse=True)
+        
+        # Display results
+        top_prediction = age_predictions[0]
+        st.success(f"**Predicted Age Range: {top_prediction['label']}**")
+        st.write(f"Confidence Score: {top_prediction['score']:.2%}")
+        
+        # Optional: Show all probabilities in a chart
+        with st.expander("See detailed probabilities"):
+            labels = [p['label'] for p in age_predictions]
+            scores = [p['score'] for p in age_predictions]
+            st.bar_chart(data=dict(zip(labels, scores)))
